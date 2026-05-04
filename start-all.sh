@@ -24,17 +24,43 @@ mkdir -p "${LOG_DIR}"
 cleanup() {
   echo ""
   echo -e "${BOLD}→ Arrêt des services…${RESET}"
+
+  # 1. SIGTERM aux subshells parents (npm).
   for pid in "${PIDS[@]}"; do
-    if kill -0 "${pid}" 2>/dev/null; then
-      # Kill tout le process group (npm start lance webpack en enfant).
-      kill -TERM -- "-${pid}" 2>/dev/null || kill "${pid}" 2>/dev/null
-    fi
+    kill -TERM "${pid}" 2>/dev/null
   done
+
+  # 2. Sur macOS, webpack-dev-server survit au kill du parent.
+  # On finit par les ports : tout ce qui écoute encore -> SIGTERM puis SIGKILL.
+  local lingering
+  lingering=$(lsof -ti tcp:3000 -ti tcp:3001 -ti tcp:3002 -ti tcp:3003 2>/dev/null | sort -u)
+  if [[ -n "${lingering}" ]]; then
+    echo -e "${BOLD}→ Nettoyage des process restants sur 3000-3003…${RESET}"
+    echo "${lingering}" | xargs kill -TERM 2>/dev/null
+    sleep 1
+    lingering=$(lsof -ti tcp:3000 -ti tcp:3001 -ti tcp:3002 -ti tcp:3003 2>/dev/null | sort -u)
+    if [[ -n "${lingering}" ]]; then
+      echo "${lingering}" | xargs kill -KILL 2>/dev/null
+    fi
+  fi
+
   wait 2>/dev/null
   echo -e "${BOLD}→ Stoppé.${RESET}"
   exit 0
 }
 trap cleanup INT TERM
+
+# Pré-check : aucun port occupé (évite que les 4 services crashent en cascade).
+busy=$(lsof -ti tcp:3000 -ti tcp:3001 -ti tcp:3002 -ti tcp:3003 2>/dev/null | sort -u)
+if [[ -n "${busy}" ]]; then
+  echo -e "${BOLD}✗ Ports déjà utilisés :${RESET}"
+  lsof -i tcp:3000 -i tcp:3001 -i tcp:3002 -i tcp:3003 -P -n 2>/dev/null \
+    | awk 'NR==1 || /LISTEN/'
+  echo ""
+  echo "Pour les libérer :"
+  echo "  echo \"${busy}\" | xargs kill"
+  exit 1
+fi
 
 # Vérifie que chaque MFE a ses dépendances. Sinon, npm install.
 for entry in "${SERVICES[@]}"; do

@@ -27,17 +27,43 @@ typeset -a PIDS=()
 cleanup() {
   print
   print -P "%B→ Arrêt des services…%b"
+
+  # 1. SIGTERM aux subshells qu'on a lancés (parents npm).
   for pid in $PIDS; do
-    if kill -0 $pid 2>/dev/null; then
-      # -pid = process group (job control activé via setopt monitor dans le subshell)
-      kill -TERM -- -$pid 2>/dev/null || kill $pid 2>/dev/null
-    fi
+    kill -TERM $pid 2>/dev/null
   done
+
+  # 2. Sur macOS, npm/webpack survit souvent au kill du parent.
+  # On finit le travail via les ports : tout ce qui écoute encore -> SIGTERM puis SIGKILL.
+  local lingering
+  lingering=$(lsof -ti tcp:3000 -ti tcp:3001 -ti tcp:3002 -ti tcp:3003 2>/dev/null | sort -u)
+  if [[ -n "$lingering" ]]; then
+    print -P "%B→ Nettoyage des process restants sur 3000-3003…%b"
+    echo "$lingering" | xargs kill -TERM 2>/dev/null
+    sleep 1
+    lingering=$(lsof -ti tcp:3000 -ti tcp:3001 -ti tcp:3002 -ti tcp:3003 2>/dev/null | sort -u)
+    if [[ -n "$lingering" ]]; then
+      echo "$lingering" | xargs kill -KILL 2>/dev/null
+    fi
+  fi
+
   wait 2>/dev/null
   print -P "%B→ Stoppé.%b"
   exit 0
 }
 trap cleanup INT TERM
+
+# Pré-check : aucun port occupé (évite que les 4 services crashent en cascade).
+busy=$(lsof -ti tcp:3000 -ti tcp:3001 -ti tcp:3002 -ti tcp:3003 2>/dev/null | sort -u)
+if [[ -n "$busy" ]]; then
+  print -P "%B✗ Ports déjà utilisés :%b"
+  lsof -i tcp:3000 -i tcp:3001 -i tcp:3002 -i tcp:3003 -P -n 2>/dev/null \
+    | awk 'NR==1 || /LISTEN/'
+  print
+  print "Pour les libérer :"
+  print "  echo \"$busy\" | xargs kill"
+  exit 1
+fi
 
 # Vérifie & installe les deps si node_modules manque.
 for name in $SERVICES; do
