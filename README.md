@@ -17,11 +17,17 @@ Voir [`CONTRACT.md`](./CONTRACT.md) pour la liste exhaustive des événements et
 
 ### Option 1 — un seul terminal (recommandé)
 
+Sur macOS (zsh par défaut) :
+```zsh
+./start-all.zsh
+```
+
+Sur Linux ou autre shell bash :
 ```bash
 ./start-all.sh
 ```
 
-Lance les 4 services en parallèle, installe les deps si besoin, logs préfixés.
+Lance les 4 services en parallèle, installe les deps si besoin, logs préfixés/colorés.
 Ctrl+C arrête proprement tout le monde.
 
 ### Option 2 — 4 terminaux (mode classique)
@@ -56,7 +62,7 @@ Puis ouvrir <http://localhost:3000>.
 
 ## Validation
 
-- [ ] Les 4 services démarrent sans erreur
+- [x] Les 4 services démarrent sans erreur
 - [ ] Cliquer "Ajouter" dans le catalogue ajoute l'article au panier
 - [ ] Le badge du header affiche le bon nombre
 - [ ] Les recommandations changent selon le contenu du panier
