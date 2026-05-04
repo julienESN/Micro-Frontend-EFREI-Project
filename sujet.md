@@ -77,7 +77,7 @@ Si ca casse : F12, identifier le probleme.
 ---
 
 Validation :
-[ ] Les 4 services demarrent sans erreur
+[ X] Les 4 services demarrent sans erreur
 [ ] Cliquer "Ajouter" dans le catalogue ajoute l'article au panier
 [ ] Le badge du header affiche le bon nombre
 [ ] Les recommandations changent selon le contenu du panier
